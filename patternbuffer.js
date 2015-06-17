@@ -1,8 +1,8 @@
 var events = require('events');
 
-var PatternBuffer = function (stream, filters) {
+var PatternBuffer = function (stream, matchers) {
 	this.stream = stream;
-	this.filters = filters;
+	this.matchers = matchers;
 	this.buffer = new Buffer('');
 	events.EventEmitter.call(this);
 	var pbuf = this;
@@ -27,15 +27,18 @@ PatternBuffer.prototype.updateBuffer = function(data) {
 	this.buffer = Buffer.concat([this.buffer, data]);
 }
 
-PatternBuffer.prototype.resetBuffer = function() {
-	this.buffer = new Buffer('');
+PatternBuffer.prototype.resetBuffer = function(index) {
+	this.buffer = new Buffer(this.buffer.slice(index));
 }
 
 PatternBuffer.prototype.checkForMatches = function() {
-	for (var i = 0; i < this.filters.length; i++) {
-		if(this.filters[i](this.buffer)) {
-			this.emit('message', this.buffer);
-			this.resetBuffer();
+	for (var i = 0; i < this.matchers.length; i++) {
+		var index = this.matchers[i](this.buffer);
+		if (index > 0) {
+			this.emit('message',
+				new Buffer(this.buffer.slice(0,index))
+			);
+			this.resetBuffer(index);
 			return;
 		}
 	}
